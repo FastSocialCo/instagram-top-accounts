@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: "If you use this dataset, please cite it as below."
+type: dataset
+title: "Most followed Instagram accounts: daily follower counts"
+authors:
+  - name: FastSocial
+    website: "https://fastsocial.co"
+license: CC-BY-4.0
+url: "https://fastsocial.co/most-followed-instagram-accounts"
+repository-code: "https://github.com/FastSocialCo/instagram-top-accounts"
+date-released: "2026-10-02"
+keywords:
+  - instagram
+  - social media
+  - followers
+  - time series

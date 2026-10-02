@@ -1,0 +1,76 @@
+name: Daily update
+
+on:
+  schedule:
+    - cron: "15 7 * * *"
+  workflow_dispatch:
+    inputs:
+      zenodo:
+        description: "Publish a new Zenodo version now"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Download data
+        run: python scripts/sync.py
+
+      - name: Commit if changed
+        id: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No change"
+          else
+            git commit -m "Data $(python -c 'import json;print(json.load(open("data/manifest.json"))["end"])')"
+            git push
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Hugging Face
+        if: steps.commit.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_REPO: ${{ vars.HF_REPO }}
+        run: |
+          if [ -z "$HF_TOKEN" ]; then echo "skip: no HF_TOKEN"; exit 0; fi
+          pip install -q huggingface_hub
+          python scripts/mirrors.py hf
+
+      - name: Kaggle
+        if: steps.commit.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+        run: |
+          if [ -z "$KAGGLE_USERNAME" ] || [ -z "$KAGGLE_KEY" ]; then echo "skip: no Kaggle secrets"; exit 0; fi
+          pip install -q kaggle
+          python scripts/mirrors.py kaggle
+
+      - name: Zenodo (1st of the month)
+        env:
+          ZENODO_TOKEN: ${{ secrets.ZENODO_TOKEN }}
+        run: |
+          if [ -z "$ZENODO_TOKEN" ]; then echo "skip: no ZENODO_TOKEN"; exit 0; fi
+          if [ "$(date -u +%d)" != "01" ] && [ "${{ inputs.zenodo }}" != "true" ]; then echo "skip: not the 1st"; exit 0; fi
+          python scripts/mirrors.py zenodo
+          git add zenodo.json
+          if ! git diff --cached --quiet; then git commit -m "Zenodo version" && git push; fi

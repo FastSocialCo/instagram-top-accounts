@@ -1,0 +1,19 @@
+{
+ "columns": [
+  "date",
+  "username",
+  "followers",
+  "name",
+  "category",
+  "country",
+  "type",
+  "rank",
+  "also_in"
+ ],
+ "license": "https://creativecommons.org/licenses/by/4.0/",
+ "source": "https://fastsocial.co/instagram-stats",
+ "rows": 4894,
+ "accounts": 2329,
+ "start": "2026-09-25",
+ "end": "2026-10-02"
+}
