@@ -175,7 +175,12 @@ def kaggle():
             run(["kaggle", "datasets", "version", "-p", tmp, "-m", "Daily update %s" % m["end"]])
         else:
             run(["kaggle", "datasets", "create", "-p", tmp, "--public"])
-        # versions carry subtitle/description/files; this also re-applies tags, licence and column notes
+        # versions carry subtitle/description/files; this also re-applies tags and file/column notes.
+        # The licence was set on create; the metadata endpoint rejects the create-style licence name.
+        meta = kaggle_meta(ref, m)
+        meta.pop("licenses")
+        with open(os.path.join(tmp, "dataset-metadata.json"), "w", encoding="utf-8") as f:
+            json.dump(meta, f, indent=1)
         run(["kaggle", "datasets", "metadata", ref, "--update", "-p", tmp])
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
