@@ -87,6 +87,10 @@ def kaggle():
     if not user or not os.environ.get("KAGGLE_KEY"):
         print("kaggle: skip (no KAGGLE_USERNAME/KAGGLE_KEY)")
         return
+    key = os.environ["KAGGLE_KEY"]
+    if key.startswith("KGAT_"):
+        # new-style API tokens are read from KAGGLE_API_TOKEN by kaggle>=1.8
+        os.environ["KAGGLE_API_TOKEN"] = key
     m = manifest()
     ref = "%s/%s" % (user, SLUG)
     tmp = tempfile.mkdtemp()
@@ -114,7 +118,7 @@ def kaggle():
             cmd = ["kaggle", "datasets", "create", "-p", tmp, "--public"]
         r = subprocess.run(cmd, capture_output=True, text=True)
         out = (r.stdout + r.stderr).strip()
-        print("kaggle:", out[-400:])
+        print("kaggle:", out[-1500:])
         if r.returncode != 0 or "error" in out.lower():
             sys.exit(1)
     finally:
