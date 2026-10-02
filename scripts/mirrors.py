@@ -58,6 +58,8 @@ def hf():
         "---\n"
         "license: cc-by-4.0\n"
         "pretty_name: \"%s\"\n"
+        "language:\n- en\n"
+        "source_datasets:\n- original\n"
         "task_categories:\n- time-series-forecasting\n- tabular-regression\n"
         "tags:\n- instagram\n- social-media\n- followers\n- time-series\n"
         "size_categories:\n- %s\n"
@@ -82,48 +84,131 @@ def hf():
 
 
 # ---------------------------------------------------------------- Kaggle
-def kaggle():
+COLUMNS = [
+    ("date", "Day of the reading (UTC), YYYY-MM-DD", "datetime"),
+    ("username", "Instagram username, without the @", "string"),
+    ("followers", "Public follower count shown on the profile that day", "integer"),
+    ("name", "Display name", "string"),
+    ("category", "Main category: Sports, Music, Film & TV, Creators, Fashion & beauty, Brands, Media, Public figures, or blank", "string"),
+    ("country", "Two-letter country code (ISO 3166-1), blank when unknown", "string"),
+    ("type", "person or org", "string"),
+    ("rank", "Rank by followers at the latest reading, among the accounts tracked (same as Top Charts)", "integer"),
+    ("also_in", "Other categories the account belongs to, separated by '; '. Blank for most accounts", "string"),
+]
+
+
+def kaggle_env():
     user = os.environ.get("KAGGLE_USERNAME")
-    if not user or not os.environ.get("KAGGLE_KEY"):
-        print("kaggle: skip (no KAGGLE_USERNAME/KAGGLE_KEY)")
-        return
-    key = os.environ["KAGGLE_KEY"]
+    key = os.environ.get("KAGGLE_KEY")
+    if not user or not key:
+        return None
     if key.startswith("KGAT_"):
         # new-style API tokens are read from KAGGLE_API_TOKEN by kaggle>=1.8
         os.environ["KAGGLE_API_TOKEN"] = key
+    return user
+
+
+def kaggle_meta(ref, m):
+    schema = {"fields": [{"name": n, "description": d, "type": t} for n, d, t in COLUMNS]}
+    desc = (
+        "Daily public follower counts for the most-followed Instagram accounts, from "
+        "[FastSocial Top Charts](%s).\n\n"
+        "## Provenance\n"
+        "- **Source:** the public follower count shown on each account's Instagram profile, read by FastSocial.\n"
+        "- **Collection:** the top 500 accounts are read every day, the rest every five days, at about 05:10 UTC. "
+        "Readings start 25 Sep 2026. Counts are not estimated or adjusted.\n"
+        "- **Accounts:** candidates come from Wikidata entries that list an Instagram username, plus a short hand-kept list. "
+        "Private accounts are left out, and accounts can opt out (%s#opt-out); removed accounts leave the whole history.\n"
+        "- **Method and column notes:** %s#data\n\n"
+        "## Update frequency\n"
+        "Daily. A new version is published every morning (UTC) by an automated job from "
+        "[GitHub](%s).\n\n"
+        "## Files\n"
+        "- `daily.csv`: every reading, one row per account per day it was read (%d rows, %d accounts, %s to %s).\n"
+        "- `latest.csv`: the newest reading per account, ordered by rank.\n\n"
+        "## Licence\n"
+        "CC BY 4.0. Credit \"FastSocial\" and link to %s.\n"
+        % (SOURCE, SOURCE, STATS, GITHUB, m["rows"], m["accounts"], m["start"], m["end"], SOURCE)
+    )
+    return {
+        "title": "Most Followed Instagram Accounts Daily",
+        "id": ref,
+        "subtitle": "Daily public follower counts of the 2,000 biggest Instagram accounts",
+        "description": desc,
+        "keywords": ["social networks", "internet", "popular culture", "tabular", "data visualization"],
+        "licenses": [{"name": "CC-BY-4.0"}],
+        "resources": [
+            {"path": "daily.csv",
+             "description": "Every reading since %s: one row per account per day it was read. The top 500 accounts "
+                            "have a row every day, the rest every five days." % m["start"],
+             "schema": schema},
+            {"path": "latest.csv",
+             "description": "The newest reading for each account, ordered by rank. Same columns as daily.csv.",
+             "schema": schema},
+        ],
+    }
+
+
+def run(cmd):
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    out = (r.stdout + r.stderr).strip()
+    print("kaggle:", out[-1500:])
+    if r.returncode != 0 or "error" in out.lower():
+        sys.exit(1)
+
+
+def kaggle():
+    user = kaggle_env()
+    if not user:
+        print("kaggle: skip (no KAGGLE_USERNAME/KAGGLE_KEY)")
+        return
     m = manifest()
     ref = "%s/%s" % (user, SLUG)
     tmp = tempfile.mkdtemp()
     try:
         for name in ("daily.csv", "latest.csv"):
             shutil.copy(os.path.join(DATA, name), tmp)
-        meta = {
-            "title": "Most Followed Instagram Accounts Daily",
-            "id": ref,
-            "subtitle": "Daily public follower counts of the biggest Instagram accounts",
-            "description": description(m),
-            "keywords": ["social networks", "internet"],
-            "licenses": [{"name": "CC-BY-4.0"}],
-            "resources": [
-                {"path": "daily.csv", "description": "Every reading since %s" % m["start"]},
-                {"path": "latest.csv", "description": "Newest reading per account, ordered by rank"},
-            ],
-        }
         with open(os.path.join(tmp, "dataset-metadata.json"), "w", encoding="utf-8") as f:
-            json.dump(meta, f, indent=1)
+            json.dump(kaggle_meta(ref, m), f, indent=1)
         exists = subprocess.run(["kaggle", "datasets", "status", ref], capture_output=True, text=True)
         if exists.returncode == 0 and "ready" in (exists.stdout + exists.stderr).lower():
-            cmd = ["kaggle", "datasets", "version", "-p", tmp, "-m", "Daily update %s" % m["end"]]
+            run(["kaggle", "datasets", "version", "-p", tmp, "-m", "Daily update %s" % m["end"]])
         else:
-            cmd = ["kaggle", "datasets", "create", "-p", tmp, "--public"]
-        r = subprocess.run(cmd, capture_output=True, text=True)
-        out = (r.stdout + r.stderr).strip()
-        print("kaggle:", out[-1500:])
-        if r.returncode != 0 or "error" in out.lower():
-            sys.exit(1)
+            run(["kaggle", "datasets", "create", "-p", tmp, "--public"])
+        # versions carry subtitle/description/files; this also re-applies tags, licence and column notes
+        run(["kaggle", "datasets", "metadata", ref, "--update", "-p", tmp])
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     print("kaggle: https://www.kaggle.com/datasets/%s" % ref)
+
+
+def kaggle_kernel():
+    user = kaggle_env()
+    if not user:
+        print("kaggle_kernel: skip (no KAGGLE_USERNAME/KAGGLE_KEY)")
+        return
+    src = os.path.join(ROOT, "kaggle", "notebook")
+    tmp = tempfile.mkdtemp()
+    try:
+        shutil.copy(os.path.join(src, "quick-look.ipynb"), tmp)
+        meta = {
+            "id": "%s/instagram-top-accounts-quick-look" % user,
+            "title": "Instagram top accounts: quick look",
+            "code_file": "quick-look.ipynb",
+            "language": "python",
+            "kernel_type": "notebook",
+            "is_private": False,
+            "enable_gpu": False,
+            "enable_internet": False,
+            "dataset_sources": ["%s/%s" % (user, SLUG)],
+            "competition_sources": [],
+            "kernel_sources": [],
+        }
+        with open(os.path.join(tmp, "kernel-metadata.json"), "w", encoding="utf-8") as f:
+            json.dump(meta, f, indent=1)
+        run(["kaggle", "kernels", "push", "-p", tmp])
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
 # ---------------------------------------------------------------- Zenodo
@@ -194,4 +279,4 @@ def zenodo():
 
 
 if __name__ == "__main__":
-    {"hf": hf, "kaggle": kaggle, "zenodo": zenodo}[sys.argv[1]]()
+    {"hf": hf, "kaggle": kaggle, "kaggle_kernel": kaggle_kernel, "zenodo": zenodo}[sys.argv[1]]()

@@ -9,6 +9,10 @@ on:
         description: "Publish a new Zenodo version now"
         type: boolean
         default: false
+      kaggle_notebook:
+        description: "Push the Kaggle quick-look notebook"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -71,6 +75,7 @@ jobs:
           if [ -z "$KAGGLE_USERNAME" ] || [ -z "$KAGGLE_KEY" ]; then echo "skip: no Kaggle secrets"; exit 0; fi
           pip install -q kaggle
           python scripts/mirrors.py kaggle
+          if [ "${{ inputs.kaggle_notebook }}" = "true" ]; then python scripts/mirrors.py kaggle_kernel; fi
 
       - name: Zenodo (1st of the month)
         env:
