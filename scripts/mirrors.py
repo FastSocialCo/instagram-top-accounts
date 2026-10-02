@@ -157,6 +157,45 @@ def run(cmd):
         sys.exit(1)
 
 
+def update_kaggle_metadata(ref, m):
+    """Re-apply subtitle, description, tags and file/column notes after each version.
+
+    The CLI's metadata update reads the file written by `kaggle datasets metadata` (a JSON string
+    inside JSON, with a `data` list of files), so download it, edit it and write it back.
+    """
+    want = kaggle_meta(ref, m)
+    files = {r["path"]: r for r in want["resources"]}
+    cols = {n: (d, t) for n, d, t in COLUMNS}
+    tmp = tempfile.mkdtemp()
+    try:
+        run(["kaggle", "datasets", "metadata", ref, "-p", tmp])
+        path = os.path.join(tmp, "dataset-metadata.json")
+        with open(path, encoding="utf-8") as f:
+            raw = json.load(f)
+        md = json.loads(raw) if isinstance(raw, str) else raw
+        md["subtitle"] = want["subtitle"]
+        md["description"] = want["description"]
+        md["keywords"] = want["keywords"]
+        for fobj in md.get("data") or []:
+            name = fobj.get("name") or fobj.get("path")
+            if name not in files:
+                continue
+            fobj["description"] = files[name]["description"]
+            have = fobj.get("columns") or []
+            if have:
+                for c in have:
+                    if c.get("name") in cols:
+                        c["description"] = cols[c["name"]][0]
+            else:
+                fobj["columns"] = [{"name": n, "description": d, "type": t} for n, (d, t) in cols.items()]
+        print("kaggle: metadata files=%s" % [f.get("name") for f in md.get("data") or []])
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(json.dumps(md) if isinstance(raw, str) else md, f)
+        run(["kaggle", "datasets", "metadata", ref, "--update", "-p", tmp])
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def kaggle():
     user = kaggle_env()
     if not user:
@@ -175,16 +214,18 @@ def kaggle():
             run(["kaggle", "datasets", "version", "-p", tmp, "-m", "Daily update %s" % m["end"]])
         else:
             run(["kaggle", "datasets", "create", "-p", tmp, "--public"])
-        # versions carry subtitle/description/files; this also re-applies tags and file/column notes.
-        # The licence was set on create; the metadata endpoint rejects the create-style licence name.
-        meta = kaggle_meta(ref, m)
-        meta.pop("licenses")
-        with open(os.path.join(tmp, "dataset-metadata.json"), "w", encoding="utf-8") as f:
-            json.dump(meta, f, indent=1)
-        run(["kaggle", "datasets", "metadata", ref, "--update", "-p", tmp])
+        update_kaggle_metadata(ref, m)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     print("kaggle: https://www.kaggle.com/datasets/%s" % ref)
+
+
+def kaggle_meta_only():
+    user = kaggle_env()
+    if not user:
+        print("kaggle_meta: skip (no KAGGLE_USERNAME/KAGGLE_KEY)")
+        return
+    update_kaggle_metadata("%s/%s" % (user, SLUG), manifest())
 
 
 def kaggle_kernel():
@@ -284,4 +325,4 @@ def zenodo():
 
 
 if __name__ == "__main__":
-    {"hf": hf, "kaggle": kaggle, "kaggle_kernel": kaggle_kernel, "zenodo": zenodo}[sys.argv[1]]()
+    {"hf": hf, "kaggle": kaggle, "kaggle_kernel": kaggle_kernel, "kaggle_meta": kaggle_meta_only, "zenodo": zenodo}[sys.argv[1]]()
