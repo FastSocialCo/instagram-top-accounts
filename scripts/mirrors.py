@@ -102,7 +102,7 @@ def kaggle():
             "id": ref,
             "subtitle": "Daily public follower counts of the biggest Instagram accounts",
             "description": description(m),
-            "keywords": ["social networks", "internet", "time series"],
+            "keywords": ["social networks", "internet"],
             "licenses": [{"name": "CC-BY-4.0"}],
             "resources": [
                 {"path": "daily.csv", "description": "Every reading since %s" % m["start"]},
