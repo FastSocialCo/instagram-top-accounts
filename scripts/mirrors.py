@@ -176,7 +176,9 @@ def update_kaggle_metadata(ref, m):
         md["subtitle"] = want["subtitle"]
         md["description"] = want["description"]
         md["keywords"] = want["keywords"]
-        for fobj in md.get("data") or []:
+        if not md.get("data"):
+            md["data"] = [{"name": n, "description": "", "columns": []} for n in files]
+        for fobj in md["data"]:
             name = fobj.get("name") or fobj.get("path")
             if name not in files:
                 continue
