@@ -57,7 +57,7 @@ def hf():
     card = (
         "---\n"
         "license: cc-by-4.0\n"
-        "pretty_name: %s\n"
+        "pretty_name: \"%s\"\n"
         "task_categories:\n- time-series-forecasting\n- tabular-regression\n"
         "tags:\n- instagram\n- social-media\n- followers\n- time-series\n"
         "size_categories:\n- %s\n"
