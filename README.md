@@ -1,6 +1,6 @@
 # Most followed Instagram accounts: daily follower counts
 
-Public follower counts of the most-followed Instagram accounts, one row per account per reading. This is the data behind [FastSocial Top Charts](https://fastsocial.co/most-followed-instagram-accounts) and [Instagram Statistics](https://fastsocial.co/instagram-stats). It updates every day.
+Public follower counts of the most-followed Instagram accounts, one row per account per reading. This is the data behind [FastSocial Top Charts](https://fastsocial.co/most-followed-instagram-accounts?ref=github-dataset) and [Instagram Statistics](https://fastsocial.co/instagram-stats?ref=github-dataset). It updates every day.
 
 ## Files
 
@@ -30,10 +30,10 @@ Public follower counts of the most-followed Instagram accounts, one row per acco
 - Counts are the public follower numbers shown on each profile. They are not estimated or adjusted.
 - The top 500 accounts are read every day. The rest are read every five days, so not every account has a row for every date.
 - Candidate accounts come from Wikidata entries that list an Instagram username, plus a short hand-kept list.
-- Private accounts are left out. Accounts can ask to be removed through the [opt-out form](https://fastsocial.co/most-followed-instagram-accounts#opt-out). Removed accounts are taken out of the whole history.
+- Private accounts are left out. Accounts can ask to be removed through the [opt-out form](https://fastsocial.co/most-followed-instagram-accounts?ref=github-dataset#opt-out). Removed accounts are taken out of the whole history.
 - `rank` is the current rank, not the rank on the day of the reading.
 
-Full method: https://fastsocial.co/instagram-stats#data
+Full method: https://fastsocial.co/instagram-stats?ref=github-dataset#data
 
 ## Licence and credit
 
@@ -45,4 +45,4 @@ Full method: https://fastsocial.co/instagram-stats#data
 
 - Direct download: https://fastsocial.co/instagram-stats/data/daily.csv.gz
 - JSON of the current chart: https://fastsocial.co/static/mf/top.json
-- API: https://fastsocial.co/instagram-api
+- API: https://fastsocial.co/instagram-api?ref=github-dataset
