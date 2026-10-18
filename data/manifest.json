@@ -8,12 +8,13 @@
   "country",
   "type",
   "rank",
-  "also_in"
+  "also_in",
+  "countries"
  ],
  "license": "https://creativecommons.org/licenses/by/4.0/",
  "source": "https://fastsocial.co/instagram-stats",
- "rows": 25854,
- "accounts": 11342,
+ "rows": 25856,
+ "accounts": 11344,
  "start": "2026-09-25",
  "end": "2026-10-17"
 }
