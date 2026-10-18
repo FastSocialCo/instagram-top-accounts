@@ -94,6 +94,7 @@ COLUMNS = [
     ("type", "person or org", "string"),
     ("rank", "Rank by followers at the latest reading, among the accounts tracked (same as Top Charts)", "integer"),
     ("also_in", "Other categories the account belongs to, separated by '; '. Blank for most accounts", "string"),
+    ("countries", "Every country the account is tied to, main country first, separated by ';' (for example US;GA). For people these are their citizenships, so most rows have one code", "string"),
 ]
 
 

@@ -24,6 +24,7 @@ Public follower counts of the most-followed Instagram accounts, one row per acco
 | `type` | `person` or `org` |
 | `rank` | Rank by followers at the latest reading, among the accounts tracked (same as Top Charts) |
 | `also_in` | Other categories the account belongs to, separated by `; `. Blank for most accounts |
+| `countries` | Every country the account is tied to, main `country` first, separated by `;` (for example `US;GA`). For people these are their citizenships, so most rows have one code |
 
 ## Method
 
