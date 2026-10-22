@@ -161,19 +161,24 @@ def run(cmd):
 def update_kaggle_metadata(ref, m):
     """Re-apply subtitle, description, tags and file/column notes after each version.
 
-    The CLI's metadata update reads the file written by `kaggle datasets metadata` (a JSON string
-    inside JSON, with a `data` list of files), so download it, edit it and write it back.
+    Downloads the settings file, edits it and sends it back, in-process so the update's reply can be
+    checked. The file has been plain JSON with the settings under "info" (kaggle 2.x), a JSON string
+    inside JSON (older CLI) and a flat dict; all three are handled. Kaggle has started answering the
+    update with an empty 2xx body, which the client fails to parse; the HTTP status already passed,
+    so that is treated as success.
     """
+    from kaggle import api
+
     want = kaggle_meta(ref, m)
     files = {r["path"]: r for r in want["resources"]}
     cols = {n: (d, t) for n, d, t in COLUMNS}
     tmp = tempfile.mkdtemp()
     try:
-        run(["kaggle", "datasets", "metadata", ref, "-p", tmp])
-        path = os.path.join(tmp, "dataset-metadata.json")
+        path = api.dataset_metadata(ref, tmp)
         with open(path, encoding="utf-8") as f:
             raw = json.load(f)
-        md = json.loads(raw) if isinstance(raw, str) else raw
+        doc = json.loads(raw) if isinstance(raw, str) else raw
+        md = doc["info"] if isinstance(doc.get("info"), dict) else doc
         md["subtitle"] = want["subtitle"]
         md["description"] = want["description"]
         md["keywords"] = want["keywords"]
@@ -193,8 +198,13 @@ def update_kaggle_metadata(ref, m):
                 fobj["columns"] = [{"name": n, "description": d, "type": t} for n, (d, t) in cols.items()]
         print("kaggle: metadata files=%s" % [f.get("name") for f in md.get("data") or []])
         with open(path, "w", encoding="utf-8") as f:
-            json.dump(json.dumps(md) if isinstance(raw, str) else md, f)
-        run(["kaggle", "datasets", "metadata", ref, "--update", "-p", tmp])
+            json.dump(doc, f)
+        try:
+            api.dataset_metadata_update(ref, tmp)
+        except json.JSONDecodeError:
+            print("kaggle: metadata update returned an empty body (HTTP ok), treated as success")
+            return
+        print("kaggle: metadata updated")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
@@ -217,7 +227,12 @@ def kaggle():
             run(["kaggle", "datasets", "version", "-p", tmp, "-m", "Daily update %s" % m["end"]])
         else:
             run(["kaggle", "datasets", "create", "-p", tmp, "--public"])
-        update_kaggle_metadata(ref, m)
+        try:
+            update_kaggle_metadata(ref, m)
+        except (Exception, SystemExit) as e:
+            # the new version is already published; a failed settings refresh must not fail the job
+            print("::warning::kaggle: metadata update failed (%s: %s); dataset version is published"
+                  % (type(e).__name__, str(e)[:200]))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     print("kaggle: https://www.kaggle.com/datasets/%s" % ref)
